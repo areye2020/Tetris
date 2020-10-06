@@ -11,6 +11,11 @@ import java.awt.*;
  * need to do precomputation in the constructor to make this possible.
  */
 public final class TetrisPiece implements Piece {
+    private PieceType shapeType; //new instance of piece type
+    private int height;
+    private int width;
+    private LinkedList rotations;
+
 
     /**
      * Construct a tetris piece of the given type. The piece should be in it's spawn orientation,
@@ -20,13 +25,17 @@ public final class TetrisPiece implements Piece {
      * the runner code and testing code.
      */
     public TetrisPiece(PieceType type) {
-        // TODO: Implement me.
+        shapeType = type;
+        rotations = new LinkedList();
+    }
+
+    public LinkedList generateRotations(){
+        return rotations;
     }
 
     @Override
     public PieceType getType() {
-        // TODO: Implement me.
-        return null;
+        return shapeType;
     }
 
     @Override
@@ -37,26 +46,24 @@ public final class TetrisPiece implements Piece {
 
     @Override
     public Piece clockwisePiece() {
-        // TODO: Implement me.
-        return null;
+        return rotations.getClockwise();
     }
 
     @Override
     public Piece counterclockwisePiece() {
-        // TODO: Implement me.
-        return null;
+        return rotations.getCounterClockwise();
     }
 
     @Override
     public int getWidth() {
-        // TODO: Implement me.
-        return -1;
+        int width = shapeType.getBoundingBox().width;
+        return width;
     }
 
     @Override
     public int getHeight() {
-        // TODO: Implement me.
-        return -1;
+        int height = shapeType.getBoundingBox().height;
+        return height;
     }
 
     @Override
