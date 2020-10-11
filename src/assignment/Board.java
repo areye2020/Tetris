@@ -68,7 +68,7 @@ public interface Board {
         CLOCKWISE,
 
         /**
-         * Attempt to rtate the piece counter-clockwise, applying wall-kicks if neccessary. If the
+         * Attempt to rotate the piece counter-clockwise, applying wall-kicks if neccessary. If the
          * wall kicks could not be successfully applied, return Result.OUT_BOUNDS.
          */
         COUNTERCLOCKWISE,
