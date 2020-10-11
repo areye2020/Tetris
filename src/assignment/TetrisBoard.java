@@ -106,7 +106,12 @@ public final class TetrisBoard implements Board {
             }
         }
         else if (act.equals(Action.COUNTERCLOCKWISE)){
-
+            if (counterClockwise()){
+                toReturn = Result.SUCCESS;
+            }
+            else{
+                toReturn = Result.OUT_BOUNDS;
+            }
         }
         else if (act.equals(Action.NOTHING)){
 
@@ -157,6 +162,53 @@ public final class TetrisBoard implements Board {
             currentPiece = rotated;
             for (Point b : body){
                 setGrid(xPosition+b.x+officialRot.x, yPosition + b.y+officialRot.y, tempGrid, getNum(currentPiece.getType()));
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public boolean counterClockwise(){
+        int initialOrientation = currentPiece.getRotationIndex();
+        TetrisPiece rotated = (TetrisPiece) currentPiece.counterclockwisePiece();
+        Point [] body = rotated.getBody();
+        Point [] wallKicks;
+        Point officialRot = null;
+        boolean rotate = true;
+
+        if (rotated.getWallKicks((-1))==null){
+            for (Point b : body){
+                if (getGrid(xPosition + b.x, yPosition + b.y)!=null){
+                    rotate = false;
+                }
+            }
+            officialRot = new Point (0, 0);
+        }
+        else{
+            wallKicks = rotated.getWallKicks(-1)[initialOrientation];
+            for (int kick = 0; kick < wallKicks.length; kick++){
+                if (officialRot == null){
+                    rotate = true;
+                    for (Point b : body) {
+                        if (getGrid(xPosition + b.x + wallKicks[0].x, yPosition + b.y + wallKicks[0].y) != null) {
+                            rotate = false;
+                        }
+                    }
+                    if (rotate){
+                        officialRot = wallKicks[kick];
+                    }
+                }
+            }
+        }
+
+        if (rotate){
+            Point [] originalBody = currentPiece.getBody();
+            for (Point b : originalBody){
+                setGrid(xPosition + b.x,yPosition + b.y , tempGrid, EMPTY);
+            }
+            currentPiece = rotated;
+            for (Point b : body){
+                setGrid(xPosition + b.x + officialRot.x, yPosition + b.y + officialRot.y, tempGrid, getNum(currentPiece.getType()));
             }
             return true;
         }
@@ -294,18 +346,21 @@ public final class TetrisBoard implements Board {
             setGrid(i, rowToClear, officialGrid, EMPTY);
             blocksInColumn[i]--;
         }
-        /*maxHeight--;
-        blocksInRow[rowToClear] = 0;
-        for (int row = rowToClear; row < getMaxHeight()-1; row++) {
-            blocksInRow[row] = blocksInRow[row + 1];
-            blocksInRow[row+1] = 0;
-            System.out.println(blocksInRow);
-            for (int block = 0; block < getWidth(); block++) {
-                setGrid(block, row, officialGrid, getNum(getGrid(block, row+1)));
-                setGrid(block, row+1, officialGrid, EMPTY);
+        for (int y = rowToClear; y < maxHeight; y++){
+            for (int x = 0; x < blocksInColumn.length; x++){
+                if (y == getHeight() - 1){
+                    setGrid(x, y, officialGrid, EMPTY);
+                    blocksInRow[y] = 0;
+
+                } else{
+                    int value = getNum(getGrid(x, y + 1));
+                    setGrid(x, y, officialGrid, value);
+                    blocksInRow[y] = blocksInRow[y + 1];
+                }
             }
-        }*/
-        //every row (r >= i) is shifted down
+        }
+        maxHeight -= 1;
+        System.out.println(maxHeight);
     }
 
     @Override
@@ -338,7 +393,35 @@ public final class TetrisBoard implements Board {
     }
 
     @Override
-    public boolean equals(Object other) { return false; }
+    public boolean equals(Object other) {
+        if(!(other instanceof TetrisBoard)) return false;
+        TetrisBoard otherBoard = (TetrisBoard) other;
+        if(!(currentPiece.equals((otherBoard).getCurrentPiece()))){
+            return false;
+        }
+        else if(!(xPosition == (otherBoard).xPosition && yPosition == (otherBoard).yPosition)){
+            return false;
+        }
+        else if(!(equalGrid(otherBoard))){
+            return false;
+        }
+        return true;
+    }
+
+    public boolean equalGrid(TetrisBoard other){
+        int test[][] = other.getOfficialGrid();
+        if(!(officialGrid.length == test.length && officialGrid[0].length == test[0].length)){
+            return false;
+        }
+        for(int y = 0; y < officialGrid.length; y++){
+            for(int x = 0; x < officialGrid[0].length; x++){
+                if(!(other.getGrid(x,y).equals(getGrid(x,y)))){
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
     @Override
     // constant time
@@ -374,7 +457,7 @@ public final class TetrisBoard implements Board {
         for (int i = 0; i < skirt.length; i++){
             if (skirt[i] != Integer.MAX_VALUE && getColumnHeight(x+i) > dropHeight){
                 dropHeight = getColumnHeight(x+i);
-                System.out.println(dropHeight);
+                //System.out.println(dropHeight);
             }
         }
         return dropHeight;
