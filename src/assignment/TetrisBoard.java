@@ -94,7 +94,8 @@ public final class TetrisBoard implements Board {
             }
         }
         else if (act.equals(Action.DROP)){
-            drop();
+            int height = dropHeight(currentPiece, xPosition);
+            System.out.println(height);
             toReturn = Result.PLACE;
         }
         else if (act.equals(Action.CLOCKWISE)){
@@ -452,23 +453,37 @@ public final class TetrisBoard implements Board {
 
     @Override
     public int dropHeight(Piece piece, int x) {
-        int [] skirt = piece.getSkirt();
+        /*int [] skirt = piece.getSkirt();
         int dropHeight = 0;
         for (int i = 0; i < skirt.length; i++){
             if (skirt[i] != Integer.MAX_VALUE && getColumnHeight(x+i) > dropHeight){
                 dropHeight = getColumnHeight(x+i);
-                //System.out.println(dropHeight);
+                System.out.println(dropHeight);
             }
+        }
+        return dropHeight;*/
+
+        int dropHeight = yPosition+lowestSkirt();
+        while(!placePiece()){
+            moveDown();
+            dropHeight--;
         }
         return dropHeight;
     }
 
-    public void drop(){
+    /*public void drop(){
         int y = dropHeight(currentPiece,xPosition);
         ArrayList<Integer> fullRows = new ArrayList<>();
         Point[] body = currentPiece.getBody();
 
-        for (Point b : body){
+        while(!placePiece()||yPosition+lowestSkirt()>y){
+            moveDown();
+        }
+        *//*while (yPosition+lowestSkirt()>y){
+            moveDown();
+        }
+        placePiece();*//*
+        *//*for (Point b : body){
             setGrid(xPosition+b.x, y+b.y, officialGrid, getNum(currentPiece.getType()));
             setGrid(xPosition+b.x, yPosition+b.y, officialGrid, EMPTY);
         }
@@ -489,8 +504,8 @@ public final class TetrisBoard implements Board {
         if (fullRows.size()>0){
             for (int i : fullRows)
                 clearRow(i);
-        }
-    }
+        }*//*
+    }*/
 
     @Override
     // constant time
