@@ -27,11 +27,12 @@ public class LameBrain implements Brain {
         // Check all of the options and get the one with the highest score
         for (int i = 0; i < options.size(); i++) {
             int score = scoreBoard(options.get(i));
-            if (score > best) {
+            if (score > best){
                 best = score;
                 bestIndex = i;
             }
         }
+        System.out.println(((TetrisBoard)currentBoard).getTotalCleared());
 
         // We want to return the first move on the way to the best Board
         return firstMoves.get(bestIndex);
