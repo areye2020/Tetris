@@ -1,5 +1,7 @@
 package assignment;
 
+import assignment.Board.Action;
+
 import java.awt.*;
 import java.util.ArrayList;
 
@@ -10,6 +12,7 @@ import java.util.ArrayList;
  */
 public final class TetrisBoard implements Board {
 
+    //constants representing content of a specific position on the grid
     private static final int EMPTY = 0;
     private static final int T = 1;
     private static final int SQUARE = 2;
@@ -19,17 +22,18 @@ public final class TetrisBoard implements Board {
     private static final int LEFT_DOG = 6;
     private static final int RIGHT_DOG = 7;
 
-    private int[][] tempGrid;
-    private int[][] officialGrid;
-    private Board.Action lastAction;
+    private int[][] tempGrid; //grid including the current piece
+    private int[][] officialGrid; //grid not including the current piece
+    private Action lastAction;
     private Board.Result lastResult;
     private Piece currentPiece;
-    private int xPosition;
-    private int yPosition;
-    private int[] blocksInRow;
-    private int[] blocksInColumn;
+    private int xPosition; //current piece's x coordinate
+    private int yPosition; //current piece's y coordinate
+    private int[] blocksInRow; //the number of blocks in each row
+    private int[] blocksInColumn; //the y coordinate of the highest block in each column
     private int maxHeight;
-    private int rowsCleared;
+    private int rowsCleared; //number of rows cleared by the last action
+    private int totalCleared;
 
     // JTetris will use this constructor
     public TetrisBoard(int width, int height) {
@@ -39,12 +43,33 @@ public final class TetrisBoard implements Board {
         blocksInColumn = new int[width];
         maxHeight = 0;
         rowsCleared = 0;
+        lastAction = Action.NOTHING;
+        totalCleared = 0;
     }
+
+    /*public TetrisBoard(TetrisBoard other){
+        other.clone();
+        tempGrid = new int [other.getHeight()][other.getWidth()];
+        for (int y = 0; y < tempGrid.length; y++){
+            for (int x = 0; x < tempGrid[0].length; x++){
+                setGrid(x, y, tempGrid, other.tempGrid[]);
+            }
+        }
+        officialGrid = new int [other.getHeight()][other.getWidth()];
+        currentPiece = new TetrisPiece((TetrisPiece) other.getCurrentPiece(), other.getCurrentPiece().getRotationIndex(), ((TetrisPiece) other.getCurrentPiece()).returnRotations(), ((TetrisPiece) other.getCurrentPiece()).getBody());
+        xPosition = other.xPosition;
+        yPosition = other.yPosition;
+        blocksInRow = new int[other.blocksInRow.length];
+        blocksInColumn = new int[other.blocksInColumn.length];
+        maxHeight = other.maxHeight;
+        rowsCleared = other.rowsCleared;
+    }*/
 
     public int[][] getOfficialGrid(){
         return officialGrid;
     }
 
+    //returns the constant representing the PieceType p
     public int getNum(Piece.PieceType p){
         if (p == null){return EMPTY;}
         else if (p.equals(Piece.PieceType.T)){return T;}
@@ -56,119 +81,133 @@ public final class TetrisBoard implements Board {
         else {return RIGHT_DOG;}
     }
 
+    //moving the current piece
     @Override
     public Result move(Action act) {
         Result toReturn = null;
-        rowsCleared = 0;
-        if (act.equals(Action.LEFT)){
-            if (xPosition+getFirstColumn()-1<0){
+        if (act.equals(Action.LEFT)){ //if currentPiece needs to move left
+            if (xPosition+getFirstColumn()-1<0){ //makes sure that the piece is not at the left edge of the grid
                 toReturn = Result.OUT_BOUNDS;
             }
-            else if (!validLeft()){
+            else if (!validLeft()){ //makes sure that there is no other piece directly left of the currentPiece
                 toReturn = Result.OUT_BOUNDS;
             }
             else{
                 moveLeft();
                 toReturn = Result.SUCCESS;
             }
+            rowsCleared = 0;
         }
-        else if (act.equals(Action.RIGHT)){
-            if (xPosition+getLastColumn()+1>=tempGrid[0].length){
+        else if (act.equals(Action.RIGHT)){ //if currentPiece needs to move right
+            if (xPosition+getLastColumn()+1>=tempGrid[0].length){ //makes sure that the piece is not at the right edge of the grid
                 toReturn = Result.OUT_BOUNDS;
             }
-            else if (!validRight()){
+            else if (!validRight()){ //makes sure that there is no other piece directly right of the currentPiece
                 toReturn = Result.OUT_BOUNDS;
             }
             else{
                 moveRight();
                 toReturn = Result.SUCCESS;
             }
+            rowsCleared = 0;
         }
-        else if (act.equals(Action.DOWN)){
-            if (placePiece()){
+        else if (act.equals(Action.DOWN)){ //if currentPiece needs to move down
+            if (placePiece()){ //if the currentPiece is at the bottom of the grid or there is a piece directly below the currentPiece
                 toReturn = Result.PLACE;
             }
             else{
-                moveDown();
+                moveDown(); //moves the currentPiece down one position
                 toReturn = Result.SUCCESS;
+                rowsCleared = 0;
             }
         }
-        else if (act.equals(Action.DROP)){
-            int height = dropHeight(currentPiece, xPosition);
-            System.out.println(height);
+        else if (act.equals(Action.DROP)){ //if currentPiece needs to drop
+            drop(); //drops the currentPiece
             toReturn = Result.PLACE;
         }
-        else if (act.equals(Action.CLOCKWISE)){
-            if (clockwise()){
+        else if (act.equals(Action.CLOCKWISE)){ //if the currentPiece needs to rotate clockwise once
+            if (clockwise()){ //rotates the currentPiece if it can be rotated
                 toReturn = Result.SUCCESS;
             }
-            else{
+            else{ //if currentPiece cannot be rotated (including wallKicks)
                 toReturn = Result.OUT_BOUNDS;
             }
+            rowsCleared = 0;
         }
-        else if (act.equals(Action.COUNTERCLOCKWISE)){
-            if (counterClockwise()){
+        else if (act.equals(Action.COUNTERCLOCKWISE)){ //if the currentPiece needs to rotate counterclockwise once
+            if (counterClockwise()){ //rotates the currentPiece if it can be rotated
                 toReturn = Result.SUCCESS;
             }
-            else{
+            else{ //if the currentPiece cannot be rotated (including wallKicks)
                 toReturn = Result.OUT_BOUNDS;
             }
+            rowsCleared = 0;
         }
-        else if (act.equals(Action.NOTHING)){
-
+        else if (act.equals(Action.NOTHING)){ //if nothing needs to be done
+            toReturn = Result.SUCCESS;
+            rowsCleared = 0;
         }
         lastAction = act;
         lastResult = toReturn;
         return toReturn;
     }
 
+    //returns true if the currentPiece can be rotated clockwise and rotates the currentPiece
     public boolean clockwise(){
         int initialOrientation = currentPiece.getRotationIndex();
         TetrisPiece rotated = (TetrisPiece) currentPiece.clockwisePiece();
         Point [] body = rotated.getBody();
         Point [] wallKicks;
-        Point officialRot = null;
+        Point officialWallKick = null;
         boolean rotate = true;
 
+        //if there are no wallKicks (like for the square piece)
         if (rotated.getWallKicks((1))==null){
             for (Point b : body){
-                if (getGrid(xPosition + b.x, yPosition + b.y)!=null){
+                if (getGrid(xPosition + b.x, yPosition + b.y)!=null){ //checks if the positions that the rotated piece will occupy is already occupied
                     rotate = false;
                 }
             }
-            officialRot = new Point (0, 0);
+            officialWallKick = new Point (0, 0); //symbolizes no wallKicks (0, 0)
         }
-        else{
+        else{ //if there are wallKicks
             wallKicks = rotated.getWallKicks(1)[initialOrientation];
-            for (int kick = 0; kick < wallKicks.length; kick++){
-                if (officialRot == null){
+            for (int kick = 0; kick < wallKicks.length; kick++){ //for each wallKick
+                if (officialWallKick == null){ //if there is not a wallKick that works yet (officialWallKick)
                     rotate = true;
-                    for (Point b : body) {
-                        if (getGrid(xPosition + b.x + wallKicks[0].x, yPosition + b.y + wallKicks[0].y) != null) {
+                    for (Point b : body) { //checks if the positions that the rotated piece will occupy (with the wallKick) is already occupied
+                        if ((xPosition + b.x + wallKicks[0].x) >= getWidth() || (xPosition + b.x + wallKicks[0].x) < 0){
+                            rotate = false;
+                        }
+                        else if ((yPosition + b.y + wallKicks[0].y) >= getHeight() || (yPosition + b.y + wallKicks[0].y) < 0){
+                            rotate = false;
+                        }
+                        else if (getGrid(xPosition + b.x + wallKicks[0].x, yPosition + b.y + wallKicks[0].y) != null) {
                             rotate = false;
                         }
                     }
-                    if (rotate){
-                        officialRot = wallKicks[kick];
+                    if (rotate){ //if all the positions are empty
+                        officialWallKick = wallKicks[kick]; //set the officialWallKick
                     }
                 }
             }
         }
 
-        if (rotate){
+        if (rotate){ //if the currentPiece can be rotated clockwise
             Point [] originalBody = currentPiece.getBody();
             for (Point b : originalBody){
-                setGrid(xPosition+b.x, yPosition + b.y, tempGrid, EMPTY);
+                setGrid(xPosition+b.x, yPosition + b.y, tempGrid, EMPTY); //each of the currentPiece's position is set to empty
             }
             currentPiece = rotated;
-            for (Point b : body){
-                setGrid(xPosition+b.x+officialRot.x, yPosition + b.y+officialRot.y, tempGrid, getNum(currentPiece.getType()));
+            for (Point b : body){ //sets the new currentPiece's positions to the correct constant
+                setGrid(xPosition+b.x+officialWallKick.x, yPosition + b.y+officialWallKick.y, tempGrid, getNum(currentPiece.getType()));
             }
-            return true;
+            return true; //if currentPiece is rotated
         }
-        return false;
+        return false; //currentPiece is not rotated
     }
 
+    //returns true if the currentPiece can be rotated counterclockwise and rotates the currentPiece
     public boolean counterClockwise(){
         int initialOrientation = currentPiece.getRotationIndex();
         TetrisPiece rotated = (TetrisPiece) currentPiece.counterclockwisePiece();
@@ -177,45 +216,47 @@ public final class TetrisBoard implements Board {
         Point officialRot = null;
         boolean rotate = true;
 
+        //if there are no wallKicks (like for the square piece)
         if (rotated.getWallKicks((-1))==null){
-            for (Point b : body){
+            for (Point b : body){ //checks if the positions that the rotated piece will occupy is already occupied
                 if (getGrid(xPosition + b.x, yPosition + b.y)!=null){
                     rotate = false;
                 }
             }
-            officialRot = new Point (0, 0);
+            officialRot = new Point (0, 0); //symbolizes no wallKicks (0, 0)
         }
-        else{
+        else{ //if there are wallKicks
             wallKicks = rotated.getWallKicks(-1)[initialOrientation];
-            for (int kick = 0; kick < wallKicks.length; kick++){
-                if (officialRot == null){
+            for (int kick = 0; kick < wallKicks.length; kick++){ //for each wallKick
+                if (officialRot == null){ //if there is not a wallKick that works yet (officialWallKick)
                     rotate = true;
-                    for (Point b : body) {
+                    for (Point b : body) { //checks if the positions that the rotated piece will occupy (with the wallKick) is already occupied
                         if (getGrid(xPosition + b.x + wallKicks[0].x, yPosition + b.y + wallKicks[0].y) != null) {
                             rotate = false;
                         }
                     }
-                    if (rotate){
-                        officialRot = wallKicks[kick];
+                    if (rotate){ //if all the positions are empty
+                        officialRot = wallKicks[kick]; //set the officialWallKick
                     }
                 }
             }
         }
 
-        if (rotate){
+        if (rotate){ //if the currentPiece can be rotated clockwise
             Point [] originalBody = currentPiece.getBody();
             for (Point b : originalBody){
-                setGrid(xPosition + b.x,yPosition + b.y , tempGrid, EMPTY);
+                setGrid(xPosition + b.x,yPosition + b.y , tempGrid, EMPTY); //each of the currentPiece's position is set to empty
             }
             currentPiece = rotated;
-            for (Point b : body){
+            for (Point b : body){ //sets the new currentPiece's positions to the correct constant
                 setGrid(xPosition + b.x + officialRot.x, yPosition + b.y + officialRot.y, tempGrid, getNum(currentPiece.getType()));
             }
-            return true;
+            return true; //if currentPiece is rotated
         }
-        return false;
+        return false; //currentPiece is not rotated
     }
 
+    //get the first left column of the currentPiece's bounding box that actually contains a block
     public int getFirstColumn(){
         int [] skirt = currentPiece.getSkirt();
         int firstColumn = 0;
@@ -225,6 +266,7 @@ public final class TetrisBoard implements Board {
         return firstColumn;
     }
 
+    //get the first right column of the currentPiece's bounding box that actually contains a block
     public int getLastColumn(){
         int [] skirt = currentPiece.getSkirt();
         int lastColumn = skirt.length-1;
@@ -234,61 +276,67 @@ public final class TetrisBoard implements Board {
         return lastColumn;
     }
 
+    //returns true if the currentPiece can be shifted left
     public boolean validLeft(){
         Point[] body = currentPiece.getBody();
         boolean validMove = false;
-        for (Point b : body){
-            if (getGrid((xPosition+b.x-1),(yPosition+b.y)) == null){
+        for (Point b : body){ //for each block in the currentPiece's body
+            if (getGrid((xPosition+b.x-1),(yPosition+b.y)) == null){ //if the coordinate to the left is empty
                 validMove = true;
             }
-            else{
-                 return false;
+            else{ //if that coordinate is not empty
+                 return false; //the currentPiece cannot be moved left
             }
         }
         return validMove;
     }
 
+    //returns true if the currentPiece can be shifted right
     public boolean validRight(){
         Point[] body = currentPiece.getBody();
         boolean validMove = false;
-        for (Point b : body){
-            if (getGrid((xPosition+b.x+1),(yPosition+b.y)) == null){
+        for (Point b : body){ //for each block in the currentPiece's body
+            if (getGrid((xPosition+b.x+1),(yPosition+b.y)) == null){ //if the coordinate to the right is empty
                 validMove = true;
             }
-            else{
-                return false;
+            else{ //if that coordinate is not empty
+                return false; //the currentPiece cannot be moved left
             }
         }
         return validMove;
     }
 
+    //moves the currentPiece to the left
     public void moveLeft(){
         Point[] body = currentPiece.getBody();
-        for (Point b : body){
-            setGrid(xPosition+b.x-1, yPosition+b.y, tempGrid, getNum(currentPiece.getType()));
-            setGrid(xPosition+b.x, yPosition+b.y, tempGrid, EMPTY);
+        for (Point b : body){ //for each block in the currentPiece's body
+            setGrid(xPosition+b.x-1, yPosition+b.y, tempGrid, getNum(currentPiece.getType())); //sets the left coordinate to the constant represented by the currentPiece's pieceType
+            setGrid(xPosition+b.x, yPosition+b.y, tempGrid, EMPTY); //sets the current coordinate to empty
         }
-        xPosition = xPosition -1;
+        xPosition = xPosition -1; //the x position of the currentPiece is shifted left by one
     }
 
+    //moves the currentPiece to the right
     public void moveRight(){
         Point[] body = currentPiece.getBody();
-        for (Point b : body){
-            setGrid(xPosition+b.x+1, yPosition+b.y, tempGrid, getNum(currentPiece.getType()));
-            setGrid(xPosition+b.x, yPosition+b.y, tempGrid, EMPTY);
+        for (Point b : body){ //for each block in the currentPiece's body
+            setGrid(xPosition+b.x+1, yPosition+b.y, tempGrid, getNum(currentPiece.getType())); //sets the right coordinate to the constant represented by the currentPiece's pieceType
+            setGrid(xPosition+b.x, yPosition+b.y, tempGrid, EMPTY); //sets the current coordinate to empty
         }
-        xPosition = xPosition + 1;
+        xPosition = xPosition + 1; //the x position of the currentPiece is shifted right by one
     }
 
+    //moves the currentPiece down
     public void moveDown(){
         Point[] body = currentPiece.getBody();
-        for (Point b : body){
-            setGrid(xPosition+b.x, yPosition+b.y-1, tempGrid, getNum(currentPiece.getType()));
-            setGrid(xPosition+b.x, yPosition+b.y, tempGrid, EMPTY);
+        for (Point b : body){ //for each block in the currentPiece's body
+            setGrid(xPosition+b.x, yPosition+b.y-1, tempGrid, getNum(currentPiece.getType())); //sets the coordinate to the bottom to the constant represented by the currentPiece's pieceType
+            setGrid(xPosition+b.x, yPosition+b.y, tempGrid, EMPTY); //sets the current coordinate to empty
         }
-        yPosition = yPosition - 1;
+        yPosition = yPosition - 1; //the y position of the currentPiece is shifted down by one
     }
 
+    //returns the lowest y coordinate of the currentPiece's body
     public int lowestSkirt (){
         int [] skirt = currentPiece.getSkirt();
         int lowest = skirt[0];
@@ -300,79 +348,113 @@ public final class TetrisBoard implements Board {
         return lowest;
     }
 
+    //officially places the currentPiece
     public boolean placePiece() {
         Point[] body = currentPiece.getBody();
-        boolean set = false;
+        boolean set = false; //true if the currentPiece should be set
         ArrayList<Integer> fullRows = new ArrayList<>();
 
-        //if (yPosition-lowestSkirt()-1<0){
-            //set = true;
-        //}
-        //else{
-            for (Point b : body){
-                if (yPosition+lowestSkirt()-1<0){
-                    set = true;
-                }
-                else if (getGrid(xPosition+b.x, yPosition+b.y-1)!=null){
-                    set = true;
-                }
+        for (Point b : body) {
+            if (yPosition + lowestSkirt() - 1 < 0) { //if the currentPiece is at the bottom
+                set = true;
+            } else if (getGrid(xPosition + b.x, yPosition + b.y - 1) != null) {//if there is a piece directly below the currentPiece
+                set = true;
             }
-        //}
+        }
 
+        //
         if (set){
             for (Point b : body) {
-                setGrid(xPosition+b.x, yPosition+b.y, officialGrid, getNum(currentPiece.getType()));
+                setGrid(xPosition+b.x, yPosition+b.y, officialGrid, getNum(currentPiece.getType())); //sets the currentPiece in the officialGrid
                 if (yPosition+b.y+1>blocksInColumn[xPosition+b.x]){
-                    blocksInColumn[xPosition+b.x]= yPosition+b.y+1;
+                    blocksInColumn[xPosition+b.x]= yPosition+b.y+1; //changes the blocks in the column of the specific Point
                 }
-                blocksInRow[yPosition+b.y]++;
+                blocksInRow[yPosition+b.y]++; //changes the number of blocks in the specific Point's row
                 if (blocksInColumn[xPosition+b.x]>maxHeight){
-                    maxHeight = blocksInColumn[xPosition+b.x];
+                    maxHeight = blocksInColumn[xPosition+b.x]; //changes max height
                 }
-                if (blocksInRow[yPosition+b.y]==getWidth()){
+                if (blocksInRow[yPosition+b.y]==getWidth()){ //checks if the row is full
                     fullRows.add(yPosition+b.y);
                 }
             }
-            if (fullRows.size()>0){
+            rowsCleared = fullRows.size();
+            if (fullRows.size()>0){ //if there are fullRows
                 for (int i : fullRows)
-                clearRow(i);
+                clearRow(i); //clear each row
             }
+            totalCleared+=rowsCleared;
             return true;
         }
         return false;
     }
 
+    //clearing row rowToClear
     public void clearRow(int rowToClear){
-        for (int i = 0; i < getWidth(); i++){
+        for (int i = 0; i < getWidth(); i++){ //that row is set to empty
             setGrid(i, rowToClear, officialGrid, EMPTY);
             blocksInColumn[i]--;
         }
-        for (int y = rowToClear; y < maxHeight; y++){
+        for (int y = rowToClear; y < maxHeight; y++){ //from rowToClear to the row containing the max height
             for (int x = 0; x < blocksInColumn.length; x++){
-                if (y == getHeight() - 1){
-                    setGrid(x, y, officialGrid, EMPTY);
+                if (y == getHeight() - 1){ //if y is the top most row
+                    setGrid(x, y, officialGrid, EMPTY); //y should be empty
                     blocksInRow[y] = 0;
 
-                } else{
-                    int value = getNum(getGrid(x, y + 1));
-                    setGrid(x, y, officialGrid, value);
-                    blocksInRow[y] = blocksInRow[y + 1];
+                } else{ //y is not the top most row
+                    int value = getNum(getGrid(x, y + 1)); //retrieves the content of the coordinate above the current coordinate
+                    setGrid(x, y, officialGrid, value); //sets the current coordinate to that value
+                    blocksInRow[y] = blocksInRow[y + 1]; //changes the number of blocks in row y
                 }
             }
         }
-        maxHeight -= 1;
-        System.out.println(maxHeight);
+        maxHeight -= 1; //changes maxHeight
     }
 
     @Override
-    public Board testMove(Action act) { return null; }
+    public Board testMove(Action act) {
+        TetrisBoard b = new TetrisBoard(this);
+        b.move(act);
+        return b;
+    }
 
+    public TetrisBoard(TetrisBoard original){
+        officialGrid = new int[original.getHeight()][original.getWidth()];
+        tempGrid = new int[original.getHeight()][original.getWidth()];
+        for (int i = 0; i < officialGrid.length; i++){
+            System.arraycopy(original.officialGrid[i], 0, officialGrid[i], 0, officialGrid[i].length);
+            System.arraycopy(original.tempGrid[i], 0, tempGrid[i], 0, tempGrid[i].length);
+        }
+        blocksInColumn = new int[original.blocksInColumn.length];
+        System.arraycopy(original.blocksInColumn, 0, blocksInColumn, 0, blocksInColumn.length);
+        blocksInRow = new int[original.blocksInRow.length];
+        System.arraycopy(original.blocksInRow, 0, blocksInRow, 0, blocksInRow.length);
+        lastAction = original.getLastAction();
+        lastResult = getLastResult();
+        currentPiece = new TetrisPiece((TetrisPiece) original.getCurrentPiece(), original.getCurrentPiece().getRotationIndex(), ((TetrisPiece)original.getCurrentPiece()).returnRotations(), original.getCurrentPiece().getBody());
+        xPosition = original.xPosition;
+        yPosition = original.yPosition;
+        maxHeight = original.getMaxHeight();
+        rowsCleared = original.rowsCleared;
+        totalCleared = original.totalCleared;
+    }
+
+    public int getTotalCleared(){
+        return totalCleared;
+    }
+
+    //returns the currentPiece
     @Override
-    public Piece getCurrentPiece() { return currentPiece; }
+    public Piece getCurrentPiece() {
+        return currentPiece;
+    }
 
+    //returns the currentPiece's position
     @Override
-    public Point getCurrentPiecePosition() { return new Point(xPosition, yPosition); }
+    public Point getCurrentPiecePosition() {
+        return new Point(xPosition, yPosition);
+    }
 
+    //adds the next piece p at the spawnPosition
     @Override
     public void nextPiece(Piece p, Point spawnPosition) {
         currentPiece = p;
@@ -380,43 +462,45 @@ public final class TetrisBoard implements Board {
         yPosition = spawnPosition.y;
         Point[] body = currentPiece.getBody();
         for (Point a : body){
-            if (yPosition+a.y<0 | yPosition+a.y>tempGrid.length){
+            if (yPosition+a.y<0 | yPosition+a.y>tempGrid.length){ //if spawnPosition is above the grid or below the grid
                 throw new IllegalArgumentException("spawnPosition is out of bounds.");
             }
-            else if(xPosition+a.x<0 | xPosition+a.x > tempGrid[0].length){
+            else if(xPosition+a.x<0 | xPosition+a.x > tempGrid[0].length){ //if spawnPosition is to the left or right of the grid
                 throw new IllegalArgumentException("spawnPosition is out of bounds.");
             }
-            else if (getGrid(xPosition+a.x, yPosition+a.y) != null){
+            else if (getGrid(xPosition+a.x, yPosition+a.y) != null){ //if the spawnPosition is already occupied
                 throw new IllegalArgumentException("spawnPosition is occupied.");
             }
             setGrid(xPosition+a.x, yPosition+a.y, tempGrid, getNum(p.getType()));
         }
     }
 
+    //returns true if the current TetrisBoard and other object are equal
     @Override
     public boolean equals(Object other) {
         if(!(other instanceof TetrisBoard)) return false;
         TetrisBoard otherBoard = (TetrisBoard) other;
-        if(!(currentPiece.equals((otherBoard).getCurrentPiece()))){
+        if(!(currentPiece.equals((otherBoard).getCurrentPiece()))){ //if the currentPieces are not equal
             return false;
         }
-        else if(!(xPosition == (otherBoard).xPosition && yPosition == (otherBoard).yPosition)){
+        else if(!(xPosition == (otherBoard).xPosition && yPosition == (otherBoard).yPosition)){ //if the currentPieces' positions are not equal
             return false;
         }
-        else if(!(equalGrid(otherBoard))){
+        else if(!(equalGrid(otherBoard))){ //if the contents of the otherBoard and current TetrisBoard are not equal
             return false;
         }
         return true;
     }
 
+    //checks if the contents of the current TetrisBoard and other TetrisBoard are equal
     public boolean equalGrid(TetrisBoard other){
         int test[][] = other.getOfficialGrid();
-        if(!(officialGrid.length == test.length && officialGrid[0].length == test[0].length)){
+        if(!(officialGrid.length == test.length && officialGrid[0].length == test[0].length)){ //if the heights and widths are not equal
             return false;
         }
         for(int y = 0; y < officialGrid.length; y++){
             for(int x = 0; x < officialGrid[0].length; x++){
-                if(!(other.getGrid(x,y).equals(getGrid(x,y)))){
+                if(!(other.getGrid(x,y).equals(getGrid(x,y)))){ //if the contents at position (x,y) are not equal
                     return false;
                 }
             }
@@ -425,100 +509,94 @@ public final class TetrisBoard implements Board {
     }
 
     @Override
-    // constant time
-    public Result getLastResult() { return lastResult; }
+    //returns the last result
+    public Result getLastResult() {
+        return lastResult;
+    }
 
     @Override
-    // constant time
-    public Action getLastAction() { return lastAction; }
+    // returns the last action
+    public Action getLastAction() {
+        return lastAction;
+    }
 
     @Override
-    // constant time
-    public int getRowsCleared() { return -1; }
+    // returns the rows cleared by the last action
+    public int getRowsCleared() {
+        return rowsCleared;
+    }
 
     @Override
-    // constant time
-    public int getWidth() { return officialGrid[0].length; }
+    //returns the width of the grid
+    public int getWidth() {
+        return officialGrid[0].length;
+    }
 
     @Override
-    // constant time
-    public int getHeight() { return officialGrid.length; }
+    //returns the height of the grid
+    public int getHeight() {
+        return officialGrid.length;
+    }
 
     @Override
-    // constant time
+    //returns the highest row number that contains a block
     public int getMaxHeight() {
-        //System.out.println(maxHeight);
         return maxHeight;
     }
 
+    //returns the y value to which the currentPiece is dropped and drops the CurrentPiece to that height
     @Override
-    public int dropHeight(Piece piece, int x) {
-        /*int [] skirt = piece.getSkirt();
-        int dropHeight = 0;
-        for (int i = 0; i < skirt.length; i++){
-            if (skirt[i] != Integer.MAX_VALUE && getColumnHeight(x+i) > dropHeight){
-                dropHeight = getColumnHeight(x+i);
-                System.out.println(dropHeight);
-            }
-        }
-        return dropHeight;*/
-
+    /*public int dropHeight(Piece p, int x) {
         int dropHeight = yPosition+lowestSkirt();
-        while(!placePiece()){
-            moveDown();
-            dropHeight--;
+        while(!placePiece()){ //if currentPiece is not ready to be placed
+            moveDown(); //move the currentPiece down
+            dropHeight--; //reduce the dropHeight
         }
         return dropHeight;
-    }
-
-    /*public void drop(){
-        int y = dropHeight(currentPiece,xPosition);
-        ArrayList<Integer> fullRows = new ArrayList<>();
-        Point[] body = currentPiece.getBody();
-
-        while(!placePiece()||yPosition+lowestSkirt()>y){
-            moveDown();
-        }
-        *//*while (yPosition+lowestSkirt()>y){
-            moveDown();
-        }
-        placePiece();*//*
-        *//*for (Point b : body){
-            setGrid(xPosition+b.x, y+b.y, officialGrid, getNum(currentPiece.getType()));
-            setGrid(xPosition+b.x, yPosition+b.y, officialGrid, EMPTY);
-        }
-        yPosition = y;
-
-        for (Point b : body) {
-            if (yPosition+b.y+1>blocksInColumn[xPosition+b.x]){
-                blocksInColumn[xPosition+b.x]= y+b.y+1;
-            }
-            blocksInRow[yPosition+b.y]++;
-            if (blocksInColumn[xPosition+b.x]>maxHeight){
-                maxHeight = blocksInColumn[xPosition+b.x];
-            }
-            if (blocksInRow[yPosition+b.y]==getWidth()){
-                fullRows.add(yPosition+b.y);
-            }
-        }
-        if (fullRows.size()>0){
-            for (int i : fullRows)
-                clearRow(i);
-        }*//*
     }*/
 
-    @Override
-    // constant time
-    public int getColumnHeight(int x) { return blocksInColumn[x]; }
+    public int dropHeight(Piece p, int x){
+        int lowestSkirt = ((TetrisPiece)p).lowestSkirt();
+        int y = yPosition;
+        Point [] body = p.getBody();
+        boolean set = false;
+        while (!set){
+            for (Point b : body) {
+                if (y + lowestSkirt - 1 < 0) { //if the piece is at the bottom
+                    set = true;
+                } else if (getGrid(x + b.x, y + b.y - 1) != null) {//if the square directly below the piece is occupied
+                    set = true;
+                }
+            }
+            if (!set){
+                y--;
+            }
+        }
+        return (y+lowestSkirt);
+    }
+
+    public void drop(){
+        int y = dropHeight(currentPiece, xPosition);
+        while(yPosition+lowestSkirt()>y){
+            moveDown();
+        }
+        placePiece();
+    }
 
     @Override
-    // constant time
+    //returns the y value of the highest block in column x
+    public int getColumnHeight(int x) {
+        return blocksInColumn[x];
+    }
+
+    @Override
+    //returns the number of blocks in row y
     public int getRowWidth(int y) {
         return blocksInRow[y];
     }
 
     @Override
-    // constant time
+    //returns the PieceType represented in position (x,y)
     public Piece.PieceType getGrid(int x, int y) {
         int value = officialGrid[officialGrid.length-1-y][x];
         String name = "";
@@ -535,16 +613,8 @@ public final class TetrisBoard implements Board {
         return Piece.PieceType.valueOf(name);
     }
 
-    public void setGrid(int x, int y, int[][] arr, int type) {
-        arr[tempGrid.length-y-1][x] = type;
-    }
-}
-
-class Test{
-    public static void main(String args[]){
-        TetrisBoard b = new TetrisBoard(5, 4);
-        //System.out.println(b.getTheGrid()[0][0]);
-        b.getOfficialGrid()[1][2] = 3;
-        System.out.println(b.getGrid(2,2));
+    //sets position (x, y) of grid to type
+    public void setGrid(int x, int y, int[][] grid, int type) {
+        grid[tempGrid.length-y-1][x] = type;
     }
 }
