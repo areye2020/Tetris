@@ -158,7 +158,10 @@ public final class TetrisPiece implements Piece {
         if(!(other instanceof TetrisPiece)) return false;
         TetrisPiece otherPiece = (TetrisPiece) other;
 
-        if (shapeType.compareTo(otherPiece.getType())==0 && rotationIndex == otherPiece.getRotationIndex()){ //shapeTypes and rotation indexes of the two TetrisPieces must be equal
+        if (shapeType.equals(PieceType.SQUARE) && ((TetrisPiece) other).shapeType.equals(PieceType.SQUARE)){
+            return true;
+        }
+        else if (shapeType.compareTo(otherPiece.getType())==0 && rotationIndex == otherPiece.getRotationIndex()){ //shapeTypes and rotation indexes of the two TetrisPieces must be equal
          return true;
         }
         else {
