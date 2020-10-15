@@ -69,6 +69,6 @@ class TetrisPieceTest {
 
     @org.junit.jupiter.api.Test
     void lowestSkirt() {
-        assertEquals(2, stick.lowestSkirt();
+        assertEquals(2, stick.lowestSkirt());
     }
 }
