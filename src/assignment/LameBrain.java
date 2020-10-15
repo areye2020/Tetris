@@ -32,7 +32,6 @@ public class LameBrain implements Brain {
                 bestIndex = i;
             }
         }
-        System.out.println(((TetrisBoard)currentBoard).getTotalCleared());
 
         // We want to return the first move on the way to the best Board
         return firstMoves.get(bestIndex);

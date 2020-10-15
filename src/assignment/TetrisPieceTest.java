@@ -62,13 +62,13 @@ class TetrisPieceTest {
     void testEquals() {
         assertEquals(false, square.equals(4));
         assertEquals(false, square.equals(t));
-        assertEquals(false, square.equals(square.clockwisePiece()));
+        assertEquals(false, t.equals(t.clockwisePiece()));
         Piece testSquare = new TetrisPiece(Piece.PieceType.SQUARE);
         assertEquals(true, testSquare.equals(square));
     }
 
     @org.junit.jupiter.api.Test
     void lowestSkirt() {
-        assertEquals(2, stick.lowestSkirt();
+        assertEquals(2, stick.lowestSkirt());
     }
 }

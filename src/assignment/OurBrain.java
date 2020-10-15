@@ -40,7 +40,6 @@ public class OurBrain implements Brain{
                 index = index + moves.size();
             }
         }
-        System.out.println(((TetrisBoard)currentBoard).getTotalCleared());
         if (index < options.get(0).size()){
             return firstMoves.get(index);
         }
